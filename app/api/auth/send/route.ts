@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { signToken } from '@/lib/auth';
 import { Resend } from 'resend';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
 
 export async function POST(request: NextRequest) {
   const { email, from } = await request.json();
