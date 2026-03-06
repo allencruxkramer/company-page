@@ -16,10 +16,6 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(new URL('/auth?error=invalid_token', request.url));
   }
 
-  if (!payload.email.toLowerCase().endsWith('@cruxclimate.com')) {
-    return NextResponse.redirect(new URL('/auth?error=invalid_domain', request.url));
-  }
-
   // Validate redirect target — must be a relative path
   const redirect = from && from.startsWith('/') && !from.startsWith('//') ? from : '/';
 

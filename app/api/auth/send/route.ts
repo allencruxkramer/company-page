@@ -11,9 +11,6 @@
         return NextResponse.json({ error: 'Email is required' }, { status: 400 });
       }
 
-      if (!email.toLowerCase().endsWith('@cruxclimate.com')) {
-        return NextResponse.json({ error: 'Only @cruxclimate.com emails are allowed' }, { status: 400 });
-      }
 
       const token = await signToken({ email, type: 'magic-link' }, '15m');
       const fromParam = typeof from === 'string' && from.startsWith('/') ? from : '/';
@@ -24,7 +21,7 @@
 
       const { error } = await resend.emails.send({
         from: process.env.AUTH_FROM_EMAIL ?? 'onboarding@resend.dev',
-        to: process.env.AUTH_TO_EMAIL ?? email,
+        to: email,
         subject: 'Your Crux login link',
         html: `
           <div style="font-family: Inter, -apple-system, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px
