@@ -107,14 +107,6 @@ export default function CompanySearch() {
           <div className="absolute right-3.5 top-1/2 -translate-y-1/2">
             <div className="w-3.5 h-3.5 border-2 border-stone-400 border-t-transparent rounded-full animate-spin" />
           </div>
-        ) : query.length >= 2 ? (
-          <button
-            onClick={handlePreview}
-            className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1.5 rounded-md bg-stone-900 text-white hover:bg-stone-700 transition-colors"
-            title="Preview with public data (EIA + News)"
-          >
-            <IconArrowRight />
-          </button>
         ) : null}
       </div>
 
