@@ -171,9 +171,7 @@ export async function getDeals(companyId: string): Promise<HubSpotDeal[]> {
     })
   );
 
-  return (deals.filter(Boolean) as HubSpotDeal[]).filter(
-    (d) => d.dealstage !== 'closedwon' && d.dealstage !== 'closedlost'
-  );
+  return deals.filter(Boolean) as HubSpotDeal[];
 }
 
 export async function getEngagements(companyId: string): Promise<HubSpotEngagement[]> {
@@ -189,35 +187,43 @@ export async function getEngagements(companyId: string): Promise<HubSpotEngageme
   const engagements = await Promise.all(
     engIds.slice(0, 30).map(async (eid) => {
       const res = await fetch(
-        `${HUBSPOT_BASE}/crm/v1/engagements/${eid}`,
+        `${HUBSPOT_BASE}/crm/v3/objects/engagements/${eid}?properties=hs_engagement_type,hs_body_preview,hs_email_subject,hs_meeting_title,hs_timestamp,hs_createdate`,
         { headers: await headers(), next: { revalidate: 3600 } }
       );
       if (!res.ok) return null;
       const d = await res.json();
-      const eng = d.engagement;
-      const meta = d.metadata;
-      const assocContacts = d.associations?.contactIds || [];
+      const p = d.properties;
+      const type = p.hs_engagement_type as string;
+      if (!['EMAIL', 'NOTE', 'MEETING'].includes(type)) return null;
 
       let contactName: string | undefined;
-      if (assocContacts[0]) {
-        try {
-          const cr = await fetch(
-            `${HUBSPOT_BASE}/crm/v3/objects/contacts/${assocContacts[0]}?properties=firstname,lastname`,
-            { headers: await headers(), next: { revalidate: 3600 } }
-          );
-          if (cr.ok) {
-            const cd = await cr.json();
-            contactName = [cd.properties.firstname, cd.properties.lastname].filter(Boolean).join(' ');
+      try {
+        const contactAssocRes = await fetch(
+          `${HUBSPOT_BASE}/crm/v3/objects/engagements/${eid}/associations/contacts?limit=1`,
+          { headers: await headers(), next: { revalidate: 3600 } }
+        );
+        if (contactAssocRes.ok) {
+          const contactAssoc = await contactAssocRes.json();
+          const contactId = contactAssoc.results?.[0]?.id;
+          if (contactId) {
+            const cr = await fetch(
+              `${HUBSPOT_BASE}/crm/v3/objects/contacts/${contactId}?properties=firstname,lastname`,
+              { headers: await headers(), next: { revalidate: 3600 } }
+            );
+            if (cr.ok) {
+              const cd = await cr.json();
+              contactName = [cd.properties.firstname, cd.properties.lastname].filter(Boolean).join(' ');
+            }
           }
-        } catch {}
-      }
+        }
+      } catch {}
 
       return {
         id: eid,
-        type: eng.type as 'EMAIL' | 'NOTE' | 'MEETING',
-        subject: meta?.subject || meta?.title || '',
-        body: meta?.body || meta?.text || '',
-        timestamp: new Date(eng.createdAt || eng.timestamp || Date.now()).toISOString(),
+        type: type as 'EMAIL' | 'NOTE' | 'MEETING',
+        subject: p.hs_email_subject || p.hs_meeting_title || '',
+        body: p.hs_body_preview || '',
+        timestamp: p.hs_timestamp || p.hs_createdate || new Date().toISOString(),
         contactName,
       };
     })
