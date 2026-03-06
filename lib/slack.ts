@@ -10,8 +10,9 @@ export async function searchSlack(companyName: string): Promise<SlackMessage[]> 
   const token = process.env.SLACK_BOT_TOKEN;
   if (!token) return [];
 
-  const ninetyDaysAgo = Math.floor((Date.now() - 90 * 24 * 60 * 60 * 1000) / 1000);
-  const query = `"${companyName}" after:${ninetyDaysAgo}`;
+  const d = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
+  const dateStr = d.toISOString().split('T')[0];
+  const query = `"${companyName}" after:${dateStr}`;
 
   const res = await fetch(
     `https://slack.com/api/search.messages?query=${encodeURIComponent(query)}&count=10&sort=timestamp`,

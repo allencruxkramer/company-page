@@ -32,7 +32,7 @@ function normalizeName(name: string): string {
   return (name || '')
     .toLowerCase()
     .replace(
-      /\b(llc|inc|corp|co|ltd|lp|limited|company|group|energy|power|renewables|renewable|capital|holdings|partners|services|solar|wind|storage)\b/g,
+      /\b(llc|inc|corp|co|ltd|lp|limited|company|group|holdings|partners|services)\b/g,
       ''
     )
     .replace(/[^a-z0-9\s]/g, '')

@@ -4,7 +4,9 @@ import type { EIAData } from './eia';
 import type { NewsArticle } from './news';
 import type { SlackMessage } from './slack';
 
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+function getClient() {
+  return new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+}
 
 const ADVISORY_COMPETITORS = [
   'Marathon Capital',
@@ -38,7 +40,7 @@ ${newsText || 'No recent news available.'}
 
 Write only the description paragraph, no headers or labels.`;
 
-  const msg = await client.messages.create({
+  const msg = await getClient().messages.create({
     model: 'claude-sonnet-4-6',
     max_tokens: 300,
     messages: [{ role: 'user', content: prompt }],
@@ -142,7 +144,7 @@ Write the briefing in a clean, scannable format using bold headers for each sect
 export async function streamBriefing(ctx: BriefingContext) {
   const prompt = buildBriefingPrompt(ctx);
 
-  return client.messages.stream({
+  return getClient().messages.stream({
     model: 'claude-sonnet-4-6',
     max_tokens: 1500,
     messages: [{ role: 'user', content: prompt }],
