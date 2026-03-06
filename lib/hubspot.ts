@@ -1,9 +1,42 @@
 const HUBSPOT_BASE = 'https://api.hubapi.com';
-const TOKEN = process.env.HUBSPOT_ACCESS_TOKEN;
 
-function headers() {
+let cachedToken: { token: string; expires: number } | null = null;
+
+async function getAccessToken(): Promise<string> {
+  if (cachedToken && Date.now() < cachedToken.expires - 60000) {
+    return cachedToken.token;
+  }
+
+  const refreshToken = process.env.HUBSPOT_REFRESH_TOKEN;
+  const clientId = process.env.HUBSPOT_CLIENT_ID;
+  const clientSecret = process.env.HUBSPOT_CLIENT_SECRET;
+
+  if (!refreshToken || !clientId || !clientSecret) {
+    throw new Error('HubSpot OAuth credentials not configured');
+  }
+
+  const res = await fetch('https://api.hubapi.com/oauth/v1/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      grant_type: 'refresh_token',
+      client_id: clientId,
+      client_secret: clientSecret,
+      refresh_token: refreshToken,
+    }),
+  });
+
+  const data = await res.json();
+  if (!res.ok) throw new Error(`HubSpot token refresh failed: ${data.message}`);
+
+  cachedToken = { token: data.access_token, expires: Date.now() + data.expires_in * 1000 };
+  return cachedToken.token;
+}
+
+async function headers() {
+  const token = await getAccessToken();
   return {
-    Authorization: `Bearer ${TOKEN}`,
+    Authorization: `Bearer ${token}`,
     'Content-Type': 'application/json',
   };
 }
@@ -51,7 +84,7 @@ export interface HubSpotCompany {
 export async function searchCompanies(query: string): Promise<HubSpotCompany[]> {
   const res = await fetch(`${HUBSPOT_BASE}/crm/v3/objects/companies/search`, {
     method: 'POST',
-    headers: headers(),
+    headers: await headers(),
     body: JSON.stringify({
       filterGroups: [
         {
@@ -78,7 +111,7 @@ export async function searchCompanies(query: string): Promise<HubSpotCompany[]> 
 export async function getCompany(id: string): Promise<HubSpotCompany> {
   const res = await fetch(
     `${HUBSPOT_BASE}/crm/v3/objects/companies/${id}?properties=name,domain,industry,city,state,numberofemployees,annualrevenue,description`,
-    { headers: headers(), next: { revalidate: 3600 } }
+    { headers: await headers(), next: { revalidate: 3600 } }
   );
   if (!res.ok) throw new Error(`HubSpot getCompany failed: ${res.status}`);
   const data = await res.json();
@@ -88,7 +121,7 @@ export async function getCompany(id: string): Promise<HubSpotCompany> {
 export async function getContacts(companyId: string): Promise<HubSpotContact[]> {
   const assocRes = await fetch(
     `${HUBSPOT_BASE}/crm/v3/objects/companies/${companyId}/associations/contacts?limit=5`,
-    { headers: headers(), next: { revalidate: 3600 } }
+    { headers: await headers(), next: { revalidate: 3600 } }
   );
   if (!assocRes.ok) return [];
   const assocData = await assocRes.json();
@@ -99,7 +132,7 @@ export async function getContacts(companyId: string): Promise<HubSpotContact[]> 
     contactIds.map(async (cid) => {
       const res = await fetch(
         `${HUBSPOT_BASE}/crm/v3/objects/contacts/${cid}?properties=firstname,lastname,jobtitle,email,phone`,
-        { headers: headers(), next: { revalidate: 3600 } }
+        { headers: await headers(), next: { revalidate: 3600 } }
       );
       if (!res.ok) return null;
       const d = await res.json();
@@ -119,7 +152,7 @@ export async function getContacts(companyId: string): Promise<HubSpotContact[]> 
 export async function getDeals(companyId: string): Promise<HubSpotDeal[]> {
   const assocRes = await fetch(
     `${HUBSPOT_BASE}/crm/v3/objects/companies/${companyId}/associations/deals?limit=20`,
-    { headers: headers(), next: { revalidate: 3600 } }
+    { headers: await headers(), next: { revalidate: 3600 } }
   );
   if (!assocRes.ok) return [];
   const assocData = await assocRes.json();
@@ -130,7 +163,7 @@ export async function getDeals(companyId: string): Promise<HubSpotDeal[]> {
     dealIds.map(async (did) => {
       const res = await fetch(
         `${HUBSPOT_BASE}/crm/v3/objects/deals/${did}?properties=dealname,dealstage,amount,closedate,pipeline,dealtype`,
-        { headers: headers(), next: { revalidate: 3600 } }
+        { headers: await headers(), next: { revalidate: 3600 } }
       );
       if (!res.ok) return null;
       const d = await res.json();
@@ -146,7 +179,7 @@ export async function getDeals(companyId: string): Promise<HubSpotDeal[]> {
 export async function getEngagements(companyId: string): Promise<HubSpotEngagement[]> {
   const assocRes = await fetch(
     `${HUBSPOT_BASE}/crm/v3/objects/companies/${companyId}/associations/engagements?limit=50`,
-    { headers: headers(), next: { revalidate: 3600 } }
+    { headers: await headers(), next: { revalidate: 3600 } }
   );
   if (!assocRes.ok) return [];
   const assocData = await assocRes.json();
@@ -157,7 +190,7 @@ export async function getEngagements(companyId: string): Promise<HubSpotEngageme
     engIds.slice(0, 30).map(async (eid) => {
       const res = await fetch(
         `${HUBSPOT_BASE}/crm/v1/engagements/${eid}`,
-        { headers: headers(), next: { revalidate: 3600 } }
+        { headers: await headers(), next: { revalidate: 3600 } }
       );
       if (!res.ok) return null;
       const d = await res.json();
@@ -170,7 +203,7 @@ export async function getEngagements(companyId: string): Promise<HubSpotEngageme
         try {
           const cr = await fetch(
             `${HUBSPOT_BASE}/crm/v3/objects/contacts/${assocContacts[0]}?properties=firstname,lastname`,
-            { headers: headers(), next: { revalidate: 3600 } }
+            { headers: await headers(), next: { revalidate: 3600 } }
           );
           if (cr.ok) {
             const cd = await cr.json();

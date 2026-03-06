@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { jwtVerify } from 'jose';
 
-const PUBLIC_PATHS = ['/auth', '/auth/verify', '/api/auth/send', '/api/auth/callback'];
+const PUBLIC_PATHS = ['/auth', '/auth/verify', '/api/auth/send', '/api/auth/callback', '/api/hubspot/callback'];
 
 function getSecret() {
   const secret = process.env.AUTH_SECRET;
